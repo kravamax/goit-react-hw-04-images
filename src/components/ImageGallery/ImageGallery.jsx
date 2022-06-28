@@ -1,13 +1,11 @@
-import React, { Component } from 'react';
+import React from 'react';
 import ImageGalleryItem from 'components/ImageGalleryItem';
 import PropTypes from 'prop-types';
 import s from './ImageGallery.module.css';
 
-class ImageGallery extends Component {
-  handleItemClick = event => {
+const ImageGallery = ({ images, handleImageClick }) => {
+  const handleItemClick = event => {
     event.preventDefault();
-
-    const { handleImageClick } = this.props;
 
     if (event.currentTarget === event.target) {
       return;
@@ -17,19 +15,16 @@ class ImageGallery extends Component {
     handleImageClick(imageURL);
   };
 
-  render() {
-    const { images } = this.props;
-    return (
-      <>
-        <ul className={s.gallery} onClick={this.handleItemClick}>
-          {images.map(image => (
-            <ImageGalleryItem image={image} key={image.id} />
-          ))}
-        </ul>
-      </>
-    );
-  }
-}
+  return (
+    <>
+      <ul className={s.gallery} onClick={handleItemClick}>
+        {images.map(image => (
+          <ImageGalleryItem image={image} key={image.id} />
+        ))}
+      </ul>
+    </>
+  );
+};
 
 ImageGallery.propTypes = {
   images: PropTypes.arrayOf(

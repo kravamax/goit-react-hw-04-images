@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import Searchbar from './Searchbar';
 import ImageGallery from 'components/ImageGallery/';
 import Button from './Button';
@@ -13,131 +13,109 @@ const Status = {
   REJECTED: 'rejected',
 };
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    error: null,
-    status: Status.IDLE,
-    page: 1,
-    totalImages: null,
-    modalImageURL: null,
-    showModal: false,
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [page, setPage] = useState(1);
+  const [totalImages, setTotalImages] = useState(null);
+  const [modalImageURL, setModalImageURL] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevQuery = prevState.query;
-    const nextQuery = this.state.query;
+  useEffect(() => {
+    if (!query) {
+      return;
+    }
 
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
+    setStatus(Status.PENDING);
 
-    if (prevQuery !== nextQuery) {
-      this.setState({
-        status: Status.PENDING,
+    api
+      .fetchImages(query)
+      .then(images => {
+        if (!images.totalHits) {
+          return Promise.reject(
+            new Error(`Nothing found for the word: ${query}.`)
+          );
+        }
+        return images;
+      })
+      .then(images => {
+        setTotalImages(images.totalHits);
+        setImages(images.hits);
+        setStatus(Status.RESOLVED);
+      })
+      .catch(error => {
+        setError(error);
+        setStatus(Status.REJECTED);
       });
+  }, [query]);
 
-      api
-        .fetchImages(nextQuery, nextPage)
-        .then(images => {
-          if (!images.totalHits) {
-            return Promise.reject(
-              new Error(`Nothing found for the word: ${nextQuery}.`)
-            );
-          }
-
-          return images;
-        })
-        .then(images =>
-          this.setState({
-            status: Status.RESOLVED,
-            images: images.hits,
-            totalImages: images.totalHits,
-          })
-        )
-        .catch(error => this.setState({ error, status: Status.REJECTED }));
+  useEffect(() => {
+    if (page === 1) {
+      return;
     }
 
-    if (prevPage !== nextPage && nextPage !== 1) {
-      this.setState({ status: Status.PENDING });
+    setStatus(Status.PENDING);
 
-      api
-        .fetchImages(nextQuery, nextPage)
-        .then(images => {
-          this.setState({
-            status: Status.RESOLVED,
-          });
-          return this.addImages(images);
-        })
-        .catch(error => this.setState({ error, status: Status.REJECTED }));
-    }
-  }
+    api
+      .fetchImages(query, page)
+      .then(images => {
+        addImages(images);
+        setStatus(Status.RESOLVED);
+      })
+      .catch(error => {
+        setError(error);
+        setStatus(Status.REJECTED);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, query]);
 
-  handleImageClick = ImageURL => {
-    this.setState({ modalImageURL: ImageURL });
+  const handleImageClick = ImageURL => {
+    setModalImageURL(ImageURL);
 
-    this.toggleModal();
+    toggleModal();
   };
 
-  addImages = images => {
-    this.setState(prevState => ({
-      images: [...prevState.images, ...images.hits],
-    }));
+  const addImages = imagesFetch => {
+    setImages([...images, ...imagesFetch.hits]);
   };
 
-  handleSubmit = query => {
-    this.setState({ query, images: [], totalImages: null, page: 1 });
+  const handleSubmit = query => {
+    setQuery(query);
+    setImages([]);
+    setTotalImages(null);
+    setPage(1);
   };
 
-  toggleModal = () => {
-    this.setState(prevState => ({ showModal: !prevState.showModal }));
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
 
-  onButtonClick = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
-  };
+  const totalAddImages = images.length;
 
-  render() {
-    const { status, error, images, totalImages, showModal, modalImageURL } =
-      this.state;
-    const totalAddImages = images.length;
+  return (
+    <div>
+      {showModal && (
+        <Modal modalImageURL={modalImageURL} onClose={toggleModal} />
+      )}
 
-    return (
-      <div>
-        {showModal && (
-          <Modal modalImageURL={modalImageURL} onClose={this.toggleModal} />
-        )}
+      <Searchbar onSubmit={handleSubmit} />
+      {images && (
+        <ImageGallery images={images} handleImageClick={handleImageClick} />
+      )}
 
-        <Searchbar onSubmit={this.handleSubmit} />
+      {status === Status.PENDING && <Loader />}
 
-        {status === Status.PENDING && (
-          <>
-            {images && (
-              <ImageGallery
-                images={images}
-                handleImageClick={this.handleImageClick}
-              />
-            )}
-            <Loader />
-          </>
-        )}
+      {status === Status.REJECTED && <h2>{error.message}</h2>}
 
-        {status === Status.REJECTED && <h2>{error.message}</h2>}
-
-        {status === Status.RESOLVED && (
-          <>
-            <ImageGallery
-              images={images}
-              handleImageClick={this.handleImageClick}
-            />
-            {totalAddImages < totalImages ? (
-              <Button onClick={this.onButtonClick} />
-            ) : null}
-          </>
-        )}
-      </div>
-    );
-  }
-}
+      {status === Status.RESOLVED && (
+        <>
+          {totalAddImages < totalImages ? (
+            <Button onClick={() => setPage(page => page + 1)} />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+};
