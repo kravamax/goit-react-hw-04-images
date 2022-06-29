@@ -30,55 +30,46 @@ export const App = () => {
 
     setStatus(Status.PENDING);
 
-    api
-      .fetchImages(query)
-      .then(images => {
-        if (!images.totalHits) {
-          return Promise.reject(
-            new Error(`Nothing found for the word: ${query}.`)
-          );
-        }
-        return images;
-      })
-      .then(images => {
-        setTotalImages(images.totalHits);
-        setImages(images.hits);
-        setStatus(Status.RESOLVED);
-      })
-      .catch(error => {
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-  }, [query]);
-
-  useEffect(() => {
     if (page === 1) {
-      return;
+      api
+        .fetchImages(query)
+        .then(images => {
+          if (!images.totalHits) {
+            return Promise.reject(
+              new Error(`Nothing found for the word: ${query}.`)
+            );
+          }
+          return images;
+        })
+        .then(images => {
+          setTotalImages(images.totalHits);
+          setImages(images.hits);
+          setStatus(Status.RESOLVED);
+        })
+        .catch(error => {
+          setError(error);
+          setStatus(Status.REJECTED);
+        });
     }
 
-    setStatus(Status.PENDING);
-
-    api
-      .fetchImages(query, page)
-      .then(images => {
-        addImages(images);
-        setStatus(Status.RESOLVED);
-      })
-      .catch(error => {
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, query]);
+    if (page > 1) {
+      api
+        .fetchImages(query, page)
+        .then(images => {
+          setImages(state => [...state, ...images.hits]);
+          setStatus(Status.RESOLVED);
+        })
+        .catch(error => {
+          setError(error);
+          setStatus(Status.REJECTED);
+        });
+    }
+  }, [query, page]);
 
   const handleImageClick = ImageURL => {
     setModalImageURL(ImageURL);
 
     toggleModal();
-  };
-
-  const addImages = imagesFetch => {
-    setImages([...images, ...imagesFetch.hits]);
   };
 
   const handleSubmit = query => {

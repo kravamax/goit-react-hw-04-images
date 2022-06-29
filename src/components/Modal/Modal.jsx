@@ -7,23 +7,22 @@ const modalRoot = document.querySelector('#modal-root');
 
 const Modal = ({ onClose, modalImageURL }) => {
   useEffect(() => {
-    window.addEventListener('click', handleOverlayClick);
+    const handleEscClick = event => {
+      if (event.code === 'Escape') {
+        onClose();
+      }
+    };
+
     window.addEventListener('keydown', handleEscClick);
 
     return () => {
-      window.removeEventListener('click', handleOverlayClick);
       window.removeEventListener('keydown', handleEscClick);
     };
-  });
+  }, [onClose]);
 
   const handleOverlayClick = event => {
+    console.log('click');
     if (event.currentTarget === event.target) {
-      onClose();
-    }
-  };
-
-  const handleEscClick = event => {
-    if (event.code === 'Escape') {
       onClose();
     }
   };
